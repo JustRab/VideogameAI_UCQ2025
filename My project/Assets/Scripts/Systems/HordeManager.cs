@@ -1,34 +1,39 @@
-using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
+using UnityEngine;
 
 public class HordeManager : MonoBehaviour
 {
+    // -------------------- Referencias -------------------------
     [Header("Refs")]
-    public EnemyGenerator generator;          // Asigna tu EnemyGenerator
-    public PlayerHealth playerHealth;         // Asigna tu PlayerHealth
+    public EnemyGenerator generator;      // arrastra tu EnemyGenerator
+    public PlayerHealth   playerHealth;   // arrastra tu PlayerHealth
 
+    // -------------------- Parámetros de horda -----------------
     [Header("Parámetros de Horda")]
     public int enemiesPerRound = 3;
     public float timeBetweenRounds = 2f;
 
+    // -------------------- Pesos -------------------------------
     [Header("Pesos Iniciales (≤0.9)")]
     [Range(0f, 0.9f)] public float difficultyWeight = 0.3f;
-    [Range(0f, 0.9f)] public float balanceWeight = 0.7f;
+    [Range(0f, 0.9f)] public float balanceWeight    = 0.7f;
 
-    [Header("UI (TextMeshProUGUI)")]
+    // -------------------- UI ----------------------------------
+    [Header("UI")]
     public TextMeshProUGUI roundText;
     public TextMeshProUGUI weightsText;
     public TextMeshProUGUI resultText;
 
-    private int currentRound = 0;
-    public List<GameObject> activeEnemies = new List<GameObject>();
-    private bool roundActive = false;
+    // -------------------- Estado interno ----------------------
+    int currentRound = 0;
+    bool roundActive = false;
+    readonly List<GameObject> activeEnemies = new List<GameObject>();
 
+    // ==========================================================
     void Start()
     {
-        // Inicializar UI
         resultText.gameObject.SetActive(false);
         StartCoroutine(StartNextRound());
     }
@@ -37,37 +42,31 @@ public class HordeManager : MonoBehaviour
     {
         if (!roundActive) return;
 
-        // Limpiar referencias a enemigos destruidos
+        // limpia referencias
         activeEnemies.RemoveAll(e => e == null);
 
         if (activeEnemies.Count == 0)
         {
-            // El jugador venció la ronda
             roundActive = false;
-            resultText.text = "¡Ronda " + currentRound + " completada!";
             StartCoroutine(RoundEnd(true));
         }
     }
 
+    // ==========================================================
     IEnumerator StartNextRound()
     {
         currentRound++;
-        roundText.text = "Ronda: " + currentRound;
+        roundText.text = $"Ronda: {currentRound}";
         UpdateWeightsUI();
 
         yield return new WaitForSeconds(timeBetweenRounds);
 
-        // Ajustar los pesos globales antes de generar
         DifficultyManager.Instance.difficultyWeight = difficultyWeight;
-        DifficultyManager.Instance.balanceWeight = balanceWeight;
+        DifficultyManager.Instance.balanceWeight    = balanceWeight;
 
-        // Generar la horda
+        // --- Generar horda con el algoritmo seleccionado ---
         activeEnemies.Clear();
-        for (int i = 0; i < enemiesPerRound; i++)
-        {
-            GameObject e = generator.SpawnEnemy();
-            activeEnemies.Add(e);
-        }
+        activeEnemies.AddRange(generator.GenerateEnemies(enemiesPerRound));
 
         resultText.gameObject.SetActive(false);
         roundActive = true;
@@ -75,18 +74,17 @@ public class HordeManager : MonoBehaviour
 
     IEnumerator RoundEnd(bool playerWon)
     {
-        // Mostrar resultado
         resultText.gameObject.SetActive(true);
         resultText.color = playerWon ? Color.green : Color.red;
-        resultText.text = playerWon ? "¡Ganaste Ronda!" : "¡Perdiste Ronda!";
+        resultText.text  = playerWon ? "¡Ganaste la ronda!" : "¡Perdiste la ronda!";
 
         // Ajustar pesos
         if (playerWon)
             difficultyWeight = Mathf.Min(0.9f, difficultyWeight + 0.1f);
         else
             difficultyWeight = Mathf.Max(0.1f, difficultyWeight - 0.1f);
-        balanceWeight = 1f - difficultyWeight;
 
+        balanceWeight = 1f - difficultyWeight;
         UpdateWeightsUI();
 
         yield return new WaitForSeconds(2f);
@@ -95,7 +93,7 @@ public class HordeManager : MonoBehaviour
 
     void UpdateWeightsUI()
     {
-        weightsText.text = 
+        weightsText.text =
             $"DifficultyWeight: {difficultyWeight:F2}\n" +
             $"BalanceWeight:   {balanceWeight:F2}";
     }

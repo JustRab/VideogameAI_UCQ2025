@@ -13,7 +13,7 @@ public class DebugWaveTrigger : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            generator.GenerateWave();
+            //generator.GenerateWave();
         }
     }
 }
