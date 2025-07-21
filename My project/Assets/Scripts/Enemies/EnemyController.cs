@@ -4,6 +4,7 @@ public class EnemyController : MonoBehaviour
 {
     public EnemyStats stats;
     public Transform player;
+    public GeneralEnemyConfig config;
 
     private float attackCooldown;
     public float maxHP = 100f;
@@ -14,6 +15,7 @@ public class EnemyController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
     }
+
     private void Update()
     {
         HandleMovement();
@@ -29,7 +31,6 @@ public class EnemyController : MonoBehaviour
             player = GameObject.FindWithTag("Player")?.transform;
 
         float difficulty = DifficultyManager.Instance.EvaluateDifficulty(stats);
-        GetComponent<Renderer>().material.color = DifficultyManager.Instance.GetColorByDifficulty(difficulty);
     }
 
     void HandleMovement()
@@ -37,14 +38,14 @@ public class EnemyController : MonoBehaviour
         if (stats.MovementSpeed <= 0f) return; // torreta
 
         Vector3 dir = Vector3.zero;
-        if (stats.movementPatternWeight >= 0.9f)
-            dir = (player.position - transform.position).normalized; // persigue
-        else if (stats.movementPatternWeight >= 0.4f)
-            dir = -(player.position - transform.position).normalized; // huye
+        if (stats.movementPatternWeight >= config.chaseThreshold)
+            dir = (player.position - transform.position).normalized;
+        else if (stats.movementPatternWeight >= config.fleeThreshold)
+            dir = -(player.position - transform.position).normalized;
         else
-            return; // estático
+            return;
 
-        Vector3 target = transform.position + dir * stats.MovementSpeed * 5f * Time.deltaTime;
+        Vector3 target = transform.position + dir * stats.MovementSpeed * config.movementMultiplier * Time.deltaTime;
         rb.MovePosition(target);
     }
 
@@ -54,12 +55,13 @@ public class EnemyController : MonoBehaviour
         if (attackCooldown <= 0f)
         {
             float dist = Vector3.Distance(transform.position, player.position);
-            if (dist <= stats.AttackRange * 10f)
+            if (dist <= stats.AttackRange * config.attackRangeMultiplier)
             {
                 var ph = player.GetComponent<PlayerHealth>();
                 if (ph != null)
-                    ph.TakeDamage(stats.AttackPower * 10f);  // escala daño a vida real
-                attackCooldown = stats.AttackRate * 2f;
+                    ph.TakeDamage(stats.AttackPower * config.attackPowerMultiplier);
+
+                attackCooldown = stats.AttackRate * config.attackCooldownMultiplier;
             }
         }
     }
@@ -70,5 +72,4 @@ public class EnemyController : MonoBehaviour
         if (currentHP <= 0f)
             Destroy(gameObject);
     }
-
 }

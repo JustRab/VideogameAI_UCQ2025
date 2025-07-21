@@ -107,11 +107,13 @@ MonoBehaviour:
     AttackRate: 0
     AttackRange: 0
     MovementSpeed: 0
+    enemyType: 0
     fire: 0
     poison: 0
     stun: 0
     movementPatternWeight: 0
   player: {fileID: 0}
+  config: {fileID: 11400000, guid: 5860a8bb621062c45bb5a8666c106590, type: 2}
   maxHP: 100
 --- !u!136 &4680885718879790386
 CapsuleCollider:

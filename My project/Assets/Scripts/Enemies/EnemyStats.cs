@@ -9,6 +9,7 @@ public class EnemyStats
     [Range(0f, 1f)] public float AttackRate; // The lower the value, the faster the attack rate
     [Range(0f, 1f)] public float AttackRange;
     [Range(0f, 1f)] public float MovementSpeed;
+    public EnemyType enemyType;
 
     // VFX
     public bool fire;

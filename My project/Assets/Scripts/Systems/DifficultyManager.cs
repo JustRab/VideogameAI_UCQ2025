@@ -70,10 +70,4 @@ public class DifficultyManager : MonoBehaviour
         return diff * normalizedDiffWeight + balance * normalizedBalWeight;
     }
 
-    public Color GetColorByDifficulty(float difficulty)
-    {
-        if (difficulty < YELLOW_THRESHOLD) return Color.green;
-        if (difficulty < RED_THRESHOLD) return Color.yellow;
-        return Color.red;
-    }
 }

@@ -1,5 +1,31 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+
+public enum EnemyType
+{
+    Brute,
+    Elite,
+    Normal
+}
+
+[System.Serializable]
+public class EnemyTypeData
+{
+    public EnemyType type;
+    public GameObject prefab;
+
+    public float minHealth;
+    public float maxHealth;
+
+    public float minSpeed;
+    public float maxSpeed;
+
+    public float minDamage;
+    public float maxDamage;
+
+    public Color color;
+}
 
 public enum EnemyGenerationMethod
 {
@@ -15,8 +41,11 @@ public class EnemyGenerator : MonoBehaviour
     public EnemyGenerationMethod generationMethod = EnemyGenerationMethod.Greedy;
 
     [Header("Prefab y Spawn")]
-    public GameObject enemyPrefab;
+    public List<EnemyTypeData> enemyTypes = new List<EnemyTypeData>();
     public Transform spawnPoint;
+
+    [Header("General Settings")]
+    public GeneralEnemyConfig generalConfig;
 
     // --------------------- GREEDY ----------------------------------
     [Header("Greedy Settings")]
@@ -36,6 +65,38 @@ public class EnemyGenerator : MonoBehaviour
     // ===============================================================
     // API PÚBLICA
     // ===============================================================
+
+    public EnemyTypeData GetRandomEnemyType(float difficultyWeight)
+    {
+        // Ejemplo simple: mayor dificultad = más posibilidad de Elite
+        float r = Random.value;
+
+        if (difficultyWeight > 0.7f && r > 0.5f)
+            return enemyTypes.FirstOrDefault(e => e.type == EnemyType.Elite);
+        else if (difficultyWeight > 0.4f)
+            return enemyTypes.FirstOrDefault(e => e.type == EnemyType.Brute);
+        else
+            return enemyTypes.FirstOrDefault(e => e.type == EnemyType.Normal);
+    }
+
+    EnemyStats GenerateRandomStatsFromType(EnemyTypeData typeData)
+    {
+        return new EnemyStats
+        {
+            HP = Random.Range(typeData.minHealth, typeData.maxHealth) / 100f, // asumimos rango 0–100
+            AttackPower = Random.Range(typeData.minDamage, typeData.maxDamage) / 100f,
+            AttackRate = Random.Range(0.1f, 1f), // libre
+            AttackRange = Random.Range(0.1f, 1f), // libre
+            MovementSpeed = Random.Range(typeData.minSpeed, typeData.maxSpeed) / 10f,
+
+            fire = Random.value < 0.3f,
+            poison = Random.value < 0.3f,
+            stun = Random.value < 0.3f,
+
+            movementPatternWeight = Random.Range(0f, 1f),
+            enemyType = typeData.type // nuevo campo si no lo tienes
+        };
+    }
     /// <summary>
     /// Genera 'count' enemigos usando el algoritmo actualmente seleccionado
     /// y devuelve una lista con los GameObjects instanciados.
@@ -72,7 +133,9 @@ public class EnemyGenerator : MonoBehaviour
 
         for (int i = 0; i < maxIterations; i++)
         {
-            EnemyStats candidate = EnemyStats.GenerateRandom();
+            EnemyTypeData typeData = GetRandomEnemyType(DifficultyManager.Instance.difficultyWeight);
+            EnemyStats candidate = GenerateRandomStatsFromType(typeData);
+
             float score = DifficultyManager.Instance.EvaluateTotalScore(candidate);
 
             if (score > bestScore)
@@ -91,10 +154,11 @@ public class EnemyGenerator : MonoBehaviour
     List<GameObject> GenerateWithSimulatedAnnealing(int count)
     {
         var list = new List<GameObject>();
+        EnemyTypeData typeData = GetRandomEnemyType(DifficultyManager.Instance.difficultyWeight);
 
         for (int e = 0; e < count; e++)
         {
-            EnemyStats current = EnemyStats.GenerateRandom();
+            EnemyStats current = GenerateRandomStatsFromType(typeData);
             float currentScore = DifficultyManager.Instance.EvaluateTotalScore(current);
             float T = saInitialTemperature;
 
@@ -162,9 +226,28 @@ public class EnemyGenerator : MonoBehaviour
     GameObject SpawnFromStats(EnemyStats stats, int offset)
     {
         Vector3 pos = spawnPoint.position + new Vector3(offset * 2f, 0f, 0f);
-        GameObject go = Instantiate(enemyPrefab, pos, Quaternion.identity);
-        go.GetComponent<EnemyController>().Initialize(stats);
-
+        EnemyTypeData data = enemyTypes.FirstOrDefault(e => e.type == stats.enemyType);
+        if (data == null)
+        {
+            Debug.LogWarning("EnemyTypeData not found for: " + stats.enemyType);
+            return null;
+        }
+        GameObject go = Instantiate(data.prefab, pos, Quaternion.identity);
+        Renderer rend = go.GetComponentInChildren<Renderer>();
+        if (rend != null)
+        {
+            MaterialPropertyBlock propBlock = new MaterialPropertyBlock();
+            rend.GetPropertyBlock(propBlock);
+            propBlock.SetColor("_BaseColor", data.color);
+            propBlock.SetColor("_EmissionColor", data.color);
+            rend.SetPropertyBlock(propBlock);
+        }
+        EnemyController controller = go.GetComponent<EnemyController>();
+        if (controller != null)
+        {
+            controller.Initialize(stats);
+            controller.config = generalConfig;
+        }
         // UI
         FindObjectOfType<EnemyStatsUI>().ShowStats(stats);
         return go;
